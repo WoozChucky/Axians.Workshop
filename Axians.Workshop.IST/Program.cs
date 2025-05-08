@@ -24,8 +24,15 @@ while (true)
     if (string.IsNullOrEmpty(prompt))
         break;
 
-    var response = await chatClient.GetResponseAsync(prompt);
-
     Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine($"AI: {response.Text}");
+    Console.Write($"AI: ");
+
+    var systemMessage = new ChatMessage(ChatRole.System, "You are a helpful assistant. And will reply using maximum of one paragraph.");
+    var userMessage = new ChatMessage(ChatRole.User, prompt);
+
+    await foreach (var update in chatClient.GetStreamingResponseAsync([systemMessage, userMessage]))
+    {
+        Console.Write(update.Text);
+    }
+    Console.WriteLine();
 }
