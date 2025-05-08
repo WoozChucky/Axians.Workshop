@@ -1,0 +1,39 @@
+﻿services:
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    runtime: nvidia  # GPU support
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:cuda
+    container_name: open-webui
+    restart: unless-stopped
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    ports:
+      - "8081:8080"
+    volumes:
+      - open-webui:/app/backend/data
+    runtime: nvidia  # Only works with Docker Engine + NVIDIA Container Toolkit
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+volumes:
+  open-webui:
+  ollama-data:
