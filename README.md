@@ -28,6 +28,11 @@ The main branch is mostly empty, and the evolution of the code is split in diffe
     - Simple showcase of how to wrap previous examples in a minimal web api
 - [05-chess-agent](https://github.com/WoozChucky/Axians.Workshop/tree/05-chess-agent)
     - A working proof-of-concept of a Chess AI agent that we can play against via a React web app as the interface
+    - This version contains a React app located at `./chess-game`
+    - To run the React app:
+        - `cd chess-game`
+        - `npm install --legacy-peer-deps`
+        - `npm run dev`
 
 ## Additional Helpers
 
