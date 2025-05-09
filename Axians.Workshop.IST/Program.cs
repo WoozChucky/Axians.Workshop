@@ -9,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 var apiKey = builder.Configuration["OpenAIKey"] ?? throw new InvalidOperationException("OpenAI API key not set");
 var ollamaEndpoint = builder.Configuration["OllamaEndpoint"] ?? throw new InvalidOperationException("Ollama endpoint not set");
 
-var chatClient = new ChatClientBuilder(
+var innerChatClient = new ChatClientBuilder(
     new OpenAIClient(apiKey).GetChatClient("gpt-4.1-mini").AsIChatClient()
     //new OllamaChatClient(ollamaEndpoint, "gemma3:27b")
 )
@@ -18,33 +18,62 @@ var chatClient = new ChatClientBuilder(
 
 var getSpeedAiFunc = AIFunctionFactory.Create(GetSpeed);
 
-while (true)
+builder.Services
+    .AddChatClient(innerChatClient)
+    .UseLogging();
+
+// add cors to allow all origins (insecure, but for testing purposes)
+builder.Services.AddCors(options =>
 {
-    Console.ForegroundColor = ConsoleColor.DarkRed;
-    Console.Write("Enter a prompt: ");
-    Console.ForegroundColor = ConsoleColor.Yellow;
+    options.AddPolicy("AllowAll",
+        opts =>
+        {
+            opts.AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        });
+});
 
-    var prompt = Console.ReadLine();
-    if (string.IsNullOrEmpty(prompt))
-        break;
+var app = builder.Build();
 
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.Write($"AI: ");
+app.UseHttpsRedirection();
 
-    var chatOptions = new ChatOptions
-    {
-        Tools = [getSpeedAiFunc]
-    };
-    var systemMessage = new ChatMessage(ChatRole.System, "You are a helpful assistant at a Lego Store");
-    var userMessage = new ChatMessage(ChatRole.User, prompt);
+app.UseCors("AllowAll");
 
-    await foreach (var update in chatClient.GetStreamingResponseAsync([systemMessage, userMessage], chatOptions))
-    {
-        Console.Write(update.Text);
-    }
-    Console.WriteLine();
-}
+app.MapGet("/speed", async (IChatClient chatClient) =>
+{
+    var chatOptions = new ChatOptions() { Tools = [getSpeedAiFunc] };
 
+    var response = await chatClient.GetResponseAsync([
+        new ChatMessage(ChatRole.System, "You an AI assistant at a Lego Store."),
+        new ChatMessage(ChatRole.User, "How fast are 10 Lego Velociraptors?"),
+    ], chatOptions);
+
+    return response.Text;
+});
+
+app.MapPost("/chat", async (IChatClient chatClient, [FromBody] ChessChatMessage request) =>
+{
+    var chatOptions = new ChatOptions() { ConversationId = request.SessionId };
+
+    var response = await chatClient.GetResponseAsync([
+        new ChatMessage(ChatRole.System, "You are a Chess AI agent playing against a human. " +
+                                         "The human is playing as white. You are playing as black." +
+                                         "You can have a conversation with the human about chess-related questions only. Refuse to talk about anything else." +
+                                         "Give small and concise answers."),
+        request,
+    ], chatOptions);
+
+    return response.Text;
+});
+
+app.Run();
 
 [Description("Computes the total speed of the Lego Velociraptors in km/h")]
 static float GetSpeed([Description("The number of Lego Velociraptors to calculate speed for")] int count) => count * 1.5f;
+
+internal record ChessChatMessage(string SessionId, string Message, string FEN)
+{
+    public static implicit operator ChatMessage(ChessChatMessage chessChatMessage) =>
+        new ChatMessage(ChatRole.User, $"{chessChatMessage.Message}{Environment.NewLine}Current Board FEN: {chessChatMessage.FEN}");
+}
