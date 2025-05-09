@@ -12,7 +12,11 @@ var ollamaEndpoint = builder.Configuration["OllamaEndpoint"] ?? throw new Invali
 var chatClient = new ChatClientBuilder(
     new OpenAIClient(apiKey).GetChatClient("gpt-4.1-mini").AsIChatClient()
     //new OllamaChatClient(ollamaEndpoint, "gemma3:27b")
-).Build();
+)
+.UseFunctionInvocation()
+.Build();
+
+var getSpeedAiFunc = AIFunctionFactory.Create(GetSpeed);
 
 while (true)
 {
@@ -27,12 +31,20 @@ while (true)
     Console.ForegroundColor = ConsoleColor.Green;
     Console.Write($"AI: ");
 
-    var systemMessage = new ChatMessage(ChatRole.System, "You are a helpful assistant. And will reply using maximum of one paragraph.");
+    var chatOptions = new ChatOptions
+    {
+        Tools = [getSpeedAiFunc]
+    };
+    var systemMessage = new ChatMessage(ChatRole.System, "You are a helpful assistant at a Lego Store");
     var userMessage = new ChatMessage(ChatRole.User, prompt);
 
-    await foreach (var update in chatClient.GetStreamingResponseAsync([systemMessage, userMessage]))
+    await foreach (var update in chatClient.GetStreamingResponseAsync([systemMessage, userMessage], chatOptions))
     {
         Console.Write(update.Text);
     }
     Console.WriteLine();
 }
+
+
+[Description("Computes the total speed of the Lego Velociraptors in km/h")]
+static float GetSpeed([Description("The number of Lego Velociraptors to calculate speed for")] int count) => count * 1.5f;
