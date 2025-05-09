@@ -30,7 +30,7 @@ export function ChatSection({ gameSessionId, fen, moveHistory }: ChatSectionProp
     setIsAiResponding(true)
 
     try {
-      const response = await axios.post("http://localhost:5000/chat", {
+      const response = await axios.post("http://localhost:5022/chat", {
         Message: userMessage,
         SessionId: gameSessionId,
         FEN: fen,

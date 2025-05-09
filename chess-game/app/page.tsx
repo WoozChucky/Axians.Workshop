@@ -63,7 +63,7 @@ export default function ChessGame() {
           const validModes = game.moves();
 
           // Call the API to get the computer's move using axios
-          const response = await axios.post("http://localhost:5000/move", {
+          const response = await axios.post("http://localhost:5022/move", {
             FEN: currentFen,
             SessionId:gameSessionId,
             PossibleMoves: validModes
